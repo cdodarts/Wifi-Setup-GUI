@@ -1,0 +1,43 @@
+name: Create Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Create release tarball
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          tar -czf wifi-setup-gui-${VERSION}.tar.gz \
+            -C dist \
+            --transform "s,^,wifi-setup-gui-${VERSION}/," \
+            . || [ $? -eq 1 ]
+          echo "Created wifi-setup-gui-${VERSION}.tar.gz"
+          ls -lh wifi-setup-gui-${VERSION}.tar.gz
+
+      - name: Generate SHA256 checksum
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          sha256sum wifi-setup-gui-${VERSION}.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            wifi-setup-gui-*.tar.gz
+            SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
